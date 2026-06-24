@@ -1,0 +1,10 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Upper Gold/Yellow Chevron -->
+  <path d="M50 10 L84 28 L72 34 L50 22 L28 34 L16 28 Z" fill="#F2AB22" />
+  <!-- Lower Gold/Yellow Chevron -->
+  <path d="M50 25 L84 43 L72 49 L50 37 L28 49 L16 43 Z" fill="#F2AB22" />
+  <!-- Left Crimson/Red Petal Wing -->
+  <path d="M16 41 L16 75 Q16 88 50 96 Q46 80 46 52 Q35 48 16 41 Z" fill="#C11E2F" />
+  <!-- Right Crimson/Red Petal Wing -->
+  <path d="M84 41 L84 75 Q84 88 50 96 Q54 80 54 52 Q65 48 84 41 Z" fill="#C11E2F" />
+</svg>

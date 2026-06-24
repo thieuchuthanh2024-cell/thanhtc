@@ -1,0 +1,6 @@
+{
+  "name": "Vietsim",
+  "description": "Hệ thống quản lý kho số, lọc số thông minh, phân quyền đại lý, tích hợp thanh toán trực tuyến và báo cáo doanh thu.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
