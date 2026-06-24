@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { sql } from "drizzle-orm";
+import crypto from "crypto";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { password, query } = body;
+    const { passwordHash, query } = body;
 
-    if (password !== "Thanh@admin") {
+    const expectedHash = crypto.createHash("sha256").update("Thanh@admin").digest("hex");
+
+    if (!passwordHash || passwordHash !== expectedHash) {
       return NextResponse.json({ success: false, error: "Mật khẩu quản trị viên không chính xác!" }, { status: 401 });
     }
 

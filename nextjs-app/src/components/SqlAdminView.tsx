@@ -29,10 +29,6 @@ export default function SqlAdminView() {
       setError("Vui lòng nhập mật khẩu quản trị viên để tiếp tục.");
       return;
     }
-    if (password !== "Thanh@admin") {
-      setError("Mật khẩu quản trị viên không chính xác!");
-      return;
-    }
     if (!query.trim()) {
       setError("Vui lòng nhập câu lệnh SQL muốn thực thi.");
       return;
@@ -47,10 +43,16 @@ export default function SqlAdminView() {
     const startTime = Date.now();
 
     try {
+      // Client-side SHA-256 hashing to securely transmit password hash instead of raw text
+      const msgBuffer = new TextEncoder().encode(password);
+      const hashBuffer = await window.crypto.subtle.digest("SHA-256", msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const passwordHash = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+
       const response = await fetch("/api/admin/execute-sql", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password, query }),
+        body: JSON.stringify({ passwordHash, query }),
       });
 
       const data = await response.json();
@@ -66,7 +68,7 @@ export default function SqlAdminView() {
         setFields(data.fields || []);
       }
     } catch (err: any) {
-      setError(err?.message || "Lỗi kết nối tới server.");
+      setError(err?.message || "Lỗi kết nối hoặc lỗi xử lý bảo mật trình duyệt.");
     } finally {
       setExecuting(false);
     }
@@ -119,7 +121,7 @@ export default function SqlAdminView() {
             Các câu lệnh tác động trực tiếp như <code className="bg-amber-100 px-1 rounded font-mono font-bold">UPDATE</code>,{" "}
             <code className="bg-amber-100 px-1 rounded font-mono font-bold">DELETE</code> hoặc{" "}
             <code className="bg-amber-100 px-1 rounded font-mono font-bold">DROP</code> có thể gây mất mát dữ liệu vĩnh viễn và không thể khôi phục. 
-            Vui lòng kiểm tra kỹ cú pháp trước khi chạy. Mật khẩu xác thực bắt buộc: <code className="bg-amber-200 px-1 py-0.5 rounded font-mono font-bold text-amber-950">Thanh@admin</code>.
+            Vui lòng kiểm tra kỹ cú pháp trước khi chạy. Mật khẩu xác thực bắt buộc của Quản trị viên tối cao.
           </p>
         </div>
       </div>

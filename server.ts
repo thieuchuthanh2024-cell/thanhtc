@@ -641,10 +641,16 @@ app.post("/api/secrets", (req, res) => {
   }
 });
 
+import crypto from "crypto";
+
 // Admin interactive raw SQL command center API with password checking
 app.post("/api/admin/execute-sql", async (req, res) => {
-  const { password, query } = req.body;
-  if (password !== "Thanh@admin") {
+  const { passwordHash, query } = req.body;
+  
+  // Calculate expected SHA-256 hash of "Thanh@admin" securely on the server
+  const expectedHash = crypto.createHash("sha256").update("Thanh@admin").digest("hex");
+
+  if (!passwordHash || passwordHash !== expectedHash) {
     return res.status(401).json({ success: false, error: "Mật khẩu quản trị viên không chính xác!" });
   }
   if (!query || typeof query !== "string" || query.trim() === "") {
