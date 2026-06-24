@@ -116,3 +116,9 @@ export const orders = pgTable("orders", {
     index("orders_created_at_idx").on(table.createdAt),
   ];
 });
+
+// Table to store System Configurations & Secrets (for On-Prem stateless deployment)
+export const systemConfigs = pgTable("system_configs", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(), // JSON string representing the config object
+});

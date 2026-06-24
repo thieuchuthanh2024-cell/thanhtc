@@ -6,7 +6,7 @@ import { GoogleGenAI } from "@google/genai";
 import { SimCard, Order, AgentProfile, OrderStatus } from "./src/types";
 import { eq, ne, and, or, gte, lte, like, desc, asc, sql } from "drizzle-orm";
 import { db } from "./src/db/index.ts";
-import { sims, agents, orders, deletedSims, networks, packages } from "./src/db/schema.ts";
+import { sims, agents, orders, deletedSims, networks, packages, systemConfigs } from "./src/db/schema.ts";
 import { analyzeFengShui, getNguHanhByYear } from "./src/utils/phongthuyEngine.ts";
 
 // Load environment variables
@@ -451,7 +451,10 @@ setTimeout(() => {
 
 const SECRETS_FILE_PATH = path.join(process.cwd(), "secrets_config.json");
 
-function readSecrets(): any {
+// In-memory cache for ultra-fast config reads
+let SECRETS_CACHE: any = null;
+
+async function initializeSecrets() {
   const defaults = {
     vietqr_enabled: true,
     vietqr_bank: "MB BANK",
@@ -485,22 +488,118 @@ function readSecrets(): any {
   };
 
   try {
-    if (fs.existsSync(SECRETS_FILE_PATH)) {
-      const fileData = JSON.parse(fs.readFileSync(SECRETS_FILE_PATH, "utf-8"));
-      return { ...defaults, ...fileData };
+    // 1. Try reading from PostgreSQL database system_configs table
+    const dbRes = await db.select().from(systemConfigs).where(eq(systemConfigs.key, "secrets_config")).limit(1);
+    if (dbRes.length > 0) {
+      try {
+        const dbData = JSON.parse(dbRes[0].value);
+        SECRETS_CACHE = { ...defaults, ...dbData };
+        console.log("[Secrets Engine] Successfully loaded system configurations from PostgreSQL Database!");
+        return;
+      } catch (parseErr) {
+        console.error("[Secrets Engine] Error parsing configurations from database, trying file fallback...", parseErr);
+      }
     }
-  } catch (err) {
-    console.error("Error reading secrets_config.json:", err);
+
+    // 2. Fallback to reading secrets_config.json if database has no records
+    if (fs.existsSync(SECRETS_FILE_PATH)) {
+      try {
+        const fileData = JSON.parse(fs.readFileSync(SECRETS_FILE_PATH, "utf-8"));
+        SECRETS_CACHE = { ...defaults, ...fileData };
+        console.log("[Secrets Engine] Loaded configurations from secrets_config.json fallback.");
+        
+        // Seed this file data into PostgreSQL DB so next time it reads from DB
+        await db.insert(systemConfigs)
+          .values({ key: "secrets_config", value: JSON.stringify(SECRETS_CACHE) })
+          .onConflictDoUpdate({ target: systemConfigs.key, set: { value: JSON.stringify(SECRETS_CACHE) } });
+        console.log("[Secrets Engine] Successfully migrated local secrets_config.json to PostgreSQL Database.");
+        return;
+      } catch (err) {
+        console.error("[Secrets Engine] Error reading secrets_config.json fallback:", err);
+      }
+    }
+  } catch (dbErr) {
+    console.error("[Secrets Engine] Database error during secrets initialization:", dbErr);
   }
-  return defaults;
+
+  // 3. Ultimate default configuration if both DB and local file fallbacks are empty
+  SECRETS_CACHE = defaults;
+  console.log("[Secrets Engine] Initialized secrets with hardcoded default credentials.");
+}
+
+// Background asynchronous initialization
+initializeSecrets().then(() => {
+  console.log("[Secrets Engine] Background initialization completed successfully.");
+}).catch(err => {
+  console.error("[Secrets Engine] Background initialization critical error:", err);
+});
+
+function readSecrets(): any {
+  const defaults = {
+    vietqr_enabled: true,
+    vietqr_bank: "MB BANK",
+    vietqr_account: "1903.8888.8888",
+    vietqr_owner: "CONG TY CỔ PHẦN ĐẠI LÝ SIM VIET NAM",
+    momo_enabled: true,
+    momo_phone: "0988.888.888",
+    momo_owner: "NGUYEN VAN ADMIN",
+    vnpay_enabled: true,
+    vnpay_terminal_id: "VNPAY001",
+    vnpay_secret_key: "SEC_ABC123XYZ",
+    api_partner_sync_stock_url: "https://api.partner.telecom/v3/stock/sync",
+    api_partner_sync_stock_key: "PARTNER_STOCK_KEY_XYZ_999",
+    api_partner_activation_url: "https://api.carrier-connect.net/v2/sim/kit-connect",
+    api_partner_activation_key: "CARRIER_JWT_SECRET_8888",
+    api_payment_webhook_momo_url: "https://kho-sim.vn/api/webhook/payments/momo",
+    api_payment_webhook_vnpay_url: "https://kho-sim.vn/api/webhook/payments/vnpay",
+    api_payment_webhook_vietqr_url: "https://kho-sim.vn/api/webhook/payments/vietqr",
+    sync_schedule_enabled: true,
+    sync_schedule_period: "daily",
+    sync_schedule_hour: "02",
+    sync_last_run: null,
+    sync_scraper_target: "https://simthanglong.vn/sim-gia-re",
+    sync_scraper_sim_count: "25",
+    api_sync_schedule_enabled: true,
+    api_sync_schedule_period: "daily",
+    api_sync_schedule_hour: "02",
+    api_sync_last_run: null,
+    api_sync_last_run_logs: [],
+    api_sync_last_run_result: null
+  };
+
+  if (!SECRETS_CACHE) {
+    // If cache not loaded yet, try a quick synchronous file check or return defaults
+    try {
+      if (fs.existsSync(SECRETS_FILE_PATH)) {
+        return { ...defaults, ...JSON.parse(fs.readFileSync(SECRETS_FILE_PATH, "utf-8")) };
+      }
+    } catch (e) {}
+    return defaults;
+  }
+  return SECRETS_CACHE;
 }
 
 function writeSecrets(data: any) {
+  // Update the in-memory cache instantly so synchronous reads get the new value immediately
+  SECRETS_CACHE = data;
+
+  // 1. Write to local secrets_config.json as backup (so developers still have local file persistence if they want)
   try {
     fs.writeFileSync(SECRETS_FILE_PATH, JSON.stringify(data, null, 2), "utf-8");
   } catch (err) {
-    console.error("Error writing secrets_config.json:", err);
+    console.error("Error writing secrets_config.json backup:", err);
   }
+
+  // 2. Write asynchronously to PostgreSQL database so it is persisted duraly & stateless
+  db.insert(systemConfigs)
+    .values({ key: "secrets_config", value: JSON.stringify(data) })
+    .onConflictDoUpdate({ target: systemConfigs.key, set: { value: JSON.stringify(data) } })
+    .then(() => {
+      console.log("[Secrets Engine] Successfully synchronized updated configurations to PostgreSQL!");
+    })
+    .catch(err => {
+      console.error("[Secrets Engine] Failed to synchronize updated configurations to PostgreSQL Database:", err);
+    });
 }
 
 // 0. Configuration API for secure/simulation setting toggle
