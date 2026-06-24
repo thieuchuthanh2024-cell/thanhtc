@@ -292,7 +292,7 @@ export default function CheckoutModal({
         setPaying(false);
       }, 1500);
     } catch (err: any) {
-      setError("Cổng thanh toán phản hồi lỗi kỹ thuật. Xin quý khách vui lòng thanh toán thủ công.");
+      setError(err.message || "Cổng thanh toán phản hồi lỗi kỹ thuật. Xin quý khách vui lòng thanh toán thủ công.");
       setPaying(false);
     }
   };

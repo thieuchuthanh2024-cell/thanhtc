@@ -5,10 +5,14 @@ import { eq } from "drizzle-orm";
 
 export async function PUT(request: Request, { params }: { params: any }) {
   try {
-    const resolvedParams = await params;
-    const id = resolvedParams.id;
+    const resolvedParams = params && typeof params.then === "function" ? await params : params;
+    const id = resolvedParams?.id;
     const body = await request.json();
     const { networkId, name, monthlyFee, minutesInternal, minutesExternal, smsInternal, smsExternal, dataGb, dataLimitText, outOfBundleCharge, isMandatory } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Thiếu mã gói cước." }, { status: 400 });
+    }
 
     if (!networkId || !name || monthlyFee === undefined) {
       return NextResponse.json({ error: "Thiếu thông tin bắt buộc." }, { status: 400 });
@@ -40,8 +44,12 @@ export async function PUT(request: Request, { params }: { params: any }) {
 
 export async function DELETE(request: Request, { params }: { params: any }) {
   try {
-    const resolvedParams = await params;
-    const id = resolvedParams.id;
+    const resolvedParams = params && typeof params.then === "function" ? await params : params;
+    const id = resolvedParams?.id;
+
+    if (!id) {
+      return NextResponse.json({ error: "Thiếu mã gói cước." }, { status: 400 });
+    }
 
     await db.delete(packages).where(eq(packages.id, id));
     return NextResponse.json({ success: true });

@@ -5,10 +5,14 @@ import { eq } from "drizzle-orm";
 
 export async function POST(request: Request, { params }: { params: any }) {
   try {
-    const resolvedParams = await params;
-    const id = resolvedParams.id;
+    const resolvedParams = params && typeof params.then === "function" ? await params : params;
+    const id = resolvedParams?.id;
     const body = await request.json();
     const { status, paymentStatus } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Missing order ID" }, { status: 400 });
+    }
 
     const list = await db.select().from(orders).where(eq(orders.id, id));
     if (list.length === 0) {
@@ -33,10 +37,12 @@ export async function POST(request: Request, { params }: { params: any }) {
         const agentList = await db.select().from(agents).where(eq(agents.id, order.agentId));
         if (agentList.length > 0) {
           const agent = agentList[0];
-          const commission = order.price - order.discountPrice;
+          const currentCommission = agent.commissionEarned || 0;
+          const currentTotalSales = agent.totalSales || 0;
+          const commission = (order.price || 0) - (order.discountPrice || 0);
           await db.update(agents).set({
-            commissionEarned: agent.commissionEarned + commission,
-            totalSales: agent.totalSales + order.price
+            commissionEarned: currentCommission + commission,
+            totalSales: currentTotalSales + (order.price || 0)
           }).where(eq(agents.id, agent.id));
         }
       }

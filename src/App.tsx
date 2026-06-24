@@ -141,7 +141,8 @@ export default function App() {
       method: "POST",
     });
     if (!response.ok) {
-      throw new Error("API cổng thanh toán phản hồi thất bại.");
+      const errPayload = await response.json().catch(() => ({}));
+      throw new Error(errPayload.error || "API cổng thanh toán phản hồi thất bại.");
     }
     // refresh internal state
     await refreshAll();

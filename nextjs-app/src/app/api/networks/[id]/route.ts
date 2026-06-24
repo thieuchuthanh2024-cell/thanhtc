@@ -5,10 +5,14 @@ import { eq } from "drizzle-orm";
 
 export async function PUT(request: Request, { params }: { params: any }) {
   try {
-    const resolvedParams = await params;
-    const id = resolvedParams.id;
+    const resolvedParams = params && typeof params.then === "function" ? await params : params;
+    const id = resolvedParams?.id;
     const body = await request.json();
     const { name, logo, notes } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Thiếu mã nhà mạng." }, { status: 400 });
+    }
 
     if (!name) {
       return NextResponse.json({ error: "Tên nhà mạng không được rỗng." }, { status: 400 });
@@ -24,8 +28,12 @@ export async function PUT(request: Request, { params }: { params: any }) {
 
 export async function DELETE(request: Request, { params }: { params: any }) {
   try {
-    const resolvedParams = await params;
-    const id = resolvedParams.id;
+    const resolvedParams = params && typeof params.then === "function" ? await params : params;
+    const id = resolvedParams?.id;
+
+    if (!id) {
+      return NextResponse.json({ error: "Thiếu mã nhà mạng." }, { status: 400 });
+    }
 
     await db.delete(networks).where(eq(networks.id, id));
     return NextResponse.json({ success: true });

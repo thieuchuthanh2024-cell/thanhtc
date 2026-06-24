@@ -5,12 +5,16 @@ import { eq } from "drizzle-orm";
 
 export async function POST(request: Request, { params }: { params: any }) {
   try {
-    const resolvedParams = await params;
-    const id = resolvedParams.id;
+    const resolvedParams = params && typeof params.then === "function" ? await params : params;
+    const id = resolvedParams?.id;
+
+    if (!id) {
+      return NextResponse.json({ error: "Yêu cầu mã đơn hàng hợp lệ." }, { status: 400 });
+    }
 
     const list = await db.select().from(orders).where(eq(orders.id, id));
     if (list.length === 0) {
-      return NextResponse.json({ error: "Không tìm thấy đơn hàng." }, { status: 404 });
+      return NextResponse.json({ error: `Không tìm thấy đơn hàng với mã: ${id}` }, { status: 404 });
     }
     const order = list[0];
 
@@ -23,15 +27,17 @@ export async function POST(request: Request, { params }: { params: any }) {
       status: "Đang xử lý"
     }).where(eq(orders.id, id));
 
-    // Accumulate Agent sales/commissions
+    // Accumulate Agent sales/commissions with safe math defaults
     if (order.agentId) {
       const agentList = await db.select().from(agents).where(eq(agents.id, order.agentId));
       if (agentList.length > 0) {
         const agent = agentList[0];
-        const commission = order.price - order.discountPrice;
+        const currentCommission = agent.commissionEarned || 0;
+        const currentTotalSales = agent.totalSales || 0;
+        const commission = (order.price || 0) - (order.discountPrice || 0);
         await db.update(agents).set({
-          commissionEarned: agent.commissionEarned + commission,
-          totalSales: agent.totalSales + order.price
+          commissionEarned: currentCommission + commission,
+          totalSales: currentTotalSales + (order.price || 0)
         }).where(eq(agents.id, agent.id));
       }
     }
@@ -45,6 +51,6 @@ export async function POST(request: Request, { params }: { params: any }) {
     return NextResponse.json({ success: true, order: updatedOrder });
   } catch (err: any) {
     console.error("POST /api/orders/[id]/simulate-payment error:", err);
-    return NextResponse.json({ error: "Simulation failed." }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi giả lập thanh toán: " + err.message }, { status: 500 });
   }
 }
