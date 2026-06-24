@@ -1446,6 +1446,29 @@ export default function ManualView() {
       </tbody>
     </table>
 
+    <h3>G. Bảng 'system_configs' (Cấu hình hệ thống & Khóa bảo mật)</h3>
+    <table border="1">
+      <thead>
+        <tr>
+          <th>Tên Trường (Column)</th>
+          <th>Kiểu Dữ Liệu (Type)</th>
+          <th>Mô tả chức năng</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>key</td>
+          <td>TEXT (Primary Key)</td>
+          <td>Từ khóa cấu hình độc bản (ví dụ: 'secrets_config').</td>
+        </tr>
+        <tr>
+          <td>value</td>
+          <td>TEXT (Not Null)</td>
+          <td>Giá trị cấu hình chuỗi hóa dạng JSON thô (Lưu cấu hình tích hợp thanh toán VietQR, Momo, VNPAY, Webhooks, cấu hình Scheduler, v.v.).</td>
+        </tr>
+      </tbody>
+    </table>
+
     <h2>3. HƯỚNG DẪN CÁCH LẤY MÃ NGUỒN VÀ TRÍCH XUẤT DATABASE VỀ CLOUD</h2>
     <ol>
       <li><strong>Tải Mã Nguồn:</strong> Nhấp vào menu <code>Settings / Export ZIP</code> ở khu vực biên tập dự án của AI Studio, lưu tệp nén về máy trạm cá nhân, giải nén vào thư mục làm việc. Hoặc cấu hình link Git để push trực tiếp lên Lab nội bộ của công ty.</li>
@@ -1594,6 +1617,12 @@ export const orders = pgTable("orders", {
   packageFee: doublePrecision("package_fee"),
   packageDetails: text("package_details"),
   isPackageMandatory: boolean("is_package_mandatory").default(false),
+});
+
+// Table to store System Configurations & Secrets (for On-Prem stateless deployment)
+export const systemConfigs = pgTable("system_configs", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
 });`;
 
   const sqlCode = `-- DDL SQL khởi tạo trực tiếp trên Private PostgreSQL
@@ -1684,6 +1713,11 @@ CREATE TABLE IF NOT EXISTS orders (
   package_fee DOUBLE PRECISION,
   package_details TEXT,
   is_package_mandatory BOOLEAN DEFAULT false
+);
+
+CREATE TABLE IF NOT EXISTS system_configs (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
 );`;
 
   const handleGenerateSims = async () => {
@@ -2745,6 +2779,31 @@ CREATE TABLE IF NOT EXISTS orders (
                           <strong className="font-mono text-xs text-slate-800">isActive</strong> <span className="text-[10px] text-slate-400 font-mono">(BOOLEAN)</span>
                         </div>
                         <span className="text-slate-500 text-right">Trạng thái bán gói.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Table G: system_configs */}
+                  <div className="border border-slate-150 rounded-xl overflow-hidden bg-slate-50/20 shadow-2xs">
+                    <div className="bg-amber-50 border-b border-amber-100 p-3 flex justify-between items-center">
+                      <span className="font-bold text-xs text-amber-950 font-sans flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        BẢNG G: system_configs (Cấu hình)
+                      </span>
+                      <span className="text-[9px] font-mono font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">2 columns</span>
+                    </div>
+                    <div className="p-3 text-[11px] space-y-2 font-sans text-slate-650 max-h-72 overflow-y-auto">
+                      <div className="border-b border-slate-100 pb-1.5 flex justify-between items-start">
+                        <div>
+                          <strong className="font-mono text-xs text-slate-800">key</strong> <span className="text-[10px] text-slate-400 font-mono">(TEXT, PK)</span>
+                        </div>
+                        <span className="text-slate-500 text-right">Từ khóa cấu hình (ví dụ: 'secrets_config').</span>
+                      </div>
+                      <div className="pb-1 flex justify-between items-start">
+                        <div>
+                          <strong className="font-mono text-xs text-slate-800">value</strong> <span className="text-[10px] text-slate-400 font-mono">(TEXT, Not Null)</span>
+                        </div>
+                        <span className="text-slate-500 text-right text-amber-600">Giá trị chuỗi JSON thô (VietQR, Momo, VNPAY, Webhook, Sync settings).</span>
                       </div>
                     </div>
                   </div>
