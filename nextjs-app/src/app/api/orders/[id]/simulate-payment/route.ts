@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 
 export async function POST(request: Request, { params }: { params: any }) {
   try {
-    const resolvedParams = params && typeof params.then === "function" ? await params : params;
+    const resolvedParams = await params;
     const id = resolvedParams?.id;
 
     if (!id) {

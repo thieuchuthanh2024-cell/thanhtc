@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 
 export async function PUT(request: Request, { params }: { params: any }) {
   try {
-    const resolvedParams = params && typeof params.then === "function" ? await params : params;
+    const resolvedParams = await params;
     const id = resolvedParams?.id;
     const body = await request.json();
     const { networkId, name, monthlyFee, minutesInternal, minutesExternal, smsInternal, smsExternal, dataGb, dataLimitText, outOfBundleCharge, isMandatory } = body;
@@ -44,7 +44,7 @@ export async function PUT(request: Request, { params }: { params: any }) {
 
 export async function DELETE(request: Request, { params }: { params: any }) {
   try {
-    const resolvedParams = params && typeof params.then === "function" ? await params : params;
+    const resolvedParams = await params;
     const id = resolvedParams?.id;
 
     if (!id) {

@@ -2837,15 +2837,17 @@ app.post("/api/orders/:id/simulate-payment", async (req, res) => {
       status: "Đang xử lý"
     }).where(eq(orders.id, id));
 
-    // Accumulate Agent sales/commissions
+    // Accumulate Agent sales/commissions with safe math defaults
     if (order.agentId) {
       const agentList = await db.select().from(agents).where(eq(agents.id, order.agentId));
       if (agentList.length > 0) {
         const agent = agentList[0];
-        const commission = order.price - order.discountPrice;
+        const currentCommission = agent.commissionEarned || 0;
+        const currentTotalSales = agent.totalSales || 0;
+        const commission = (order.price || 0) - (order.discountPrice || 0);
         await db.update(agents).set({
-          commissionEarned: agent.commissionEarned + commission,
-          totalSales: agent.totalSales + order.price
+          commissionEarned: currentCommission + commission,
+          totalSales: currentTotalSales + (order.price || 0)
         }).where(eq(agents.id, agent.id));
       }
     }
@@ -2891,10 +2893,12 @@ app.post("/api/orders/:id/update-status", async (req, res) => {
         const agentList = await db.select().from(agents).where(eq(agents.id, order.agentId));
         if (agentList.length > 0) {
           const agent = agentList[0];
-          const commission = order.price - order.discountPrice;
+          const currentCommission = agent.commissionEarned || 0;
+          const currentTotalSales = agent.totalSales || 0;
+          const commission = (order.price || 0) - (order.discountPrice || 0);
           await db.update(agents).set({
-            commissionEarned: agent.commissionEarned + commission,
-            totalSales: agent.totalSales + order.price
+            commissionEarned: currentCommission + commission,
+            totalSales: currentTotalSales + (order.price || 0)
           }).where(eq(agents.id, agent.id));
         }
       }
