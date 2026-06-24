@@ -789,6 +789,39 @@ export default function ManualView() {
       </ul>
     </div>
 
+    <div class="role-section" style="border-left-color: #8b5cf6;">
+      <div class="role-title">CHỦ ĐỀ 17: Nâng cấp Toàn diện Hệ thống Bán SIM kèm Gói cước Ưu đãi & Gói cước Cam kết (SIM & Mobile Packages Integration)</div>
+      <p><strong>Yêu cầu từ khách hàng:</strong> Phát triển phương án nâng cấp hệ thống kinh doanh sim di động để bán kèm các gói cước tiện ích của các nhà mạng (Viettel, Vinaphone, Mobifone...). Yêu cầu liên kết giữa SIM và gói cước phải chặt chẽ thông qua bảng Nhà mạng riêng biệt, tránh dùng text loose coupling. Hơn nữa, những sim số đẹp vip buộc phải mua kèm một gói cước cam kết cố định của nhà mạng đó không được lựa chọn tự do, các sim thông thường khác thì được phép lựa chọn các gói cước nhà mạng tương ứng hoặc không mua kèm.</p>
+      <p><strong>Giải pháp Kỹ thuật đã triển khai:</strong></p>
+      <ul>
+        <li><strong>Bảng quan hệ cơ sở dữ liệu chuẩn hóa (Relational Schema Upgrade):</strong>
+          <ul>
+            <li>Thiết lập bảng <code>networks</code> riêng biệt để quản lý nhà mạng di động (với các trường: <code>id</code>, <code>name</code>, <code>logo</code>, <code>notes</code>).</li>
+            <li>Thiết lập bảng <code>packages</code> để quản lý thông tin các gói cước (với các trường: <code>id</code>, <code>network_id</code>, <code>name</code>, <code>monthly_fee</code>, <code>minutes_internal</code>, <code>minutes_external</code>, <code>sms_internal</code>, <code>sms_external</code>, <code>data_gb</code>, <code>data_limit_text</code>, <code>out_of_bundle_charge</code>, <code>is_mandatory</code>).</li>
+            <li>Liên kết bảng <code>sims</code> với <code>network_id</code> và <code>mandatory_package_id</code> làm khóa ngoại an toàn. Các sim đẹp (trị giá &ge; 50 triệu) tự động gán chặt với gói cước cam kết có <code>is_mandatory: true</code>. Các bảng <code>orders</code> liên kết <code>package_id</code> và lưu trữ sao chép cứng toàn bộ đặc tính gói cước tại thời điểm mua (Tránh lỗi thay đổi giá gói cước trong tương lai làm sai lệch doanh thu lịch sử).</li>
+          </ul>
+        </li>
+        <li><strong>Phát triển phân hệ Admin quản trị CRUD Nhà mạng & Gói cước (Admin Packages Dashboard):</strong>
+          <ul>
+            <li>Xây dựng màn hình quản trị <strong>Gói cước & Nhà mạng (Packages & Networks Management View)</strong> hiển thị dạng Tab đôi tinh xảo, hỗ trợ thêm mới, chỉnh sửa, xóa nhà mạng di động và đăng ký các gói cước mới với đầy đủ thông số kỹ thuật (Hạn mức data hằng ngày, số phút gọi nội/ngoại mạng, tin nhắn sms và cước phí phát sinh).</li>
+            <li>Cung cấp bộ lọc thông minh lọc nhanh gói cước theo từng nhà mạng, đi kèm nhãn chỉ báo "Gói cam kết bắt buộc" trực quan.</li>
+          </ul>
+        </li>
+        <li><strong>Liên kết luồng đặt hàng & Thanh toán (Automated Checkout Coupling & Receipting):</strong>
+          <ul>
+            <li>Khi nhấn đặt mua một SIM số đẹp vip có gán gói cước cam kết bắt buộc, hệ thống tự động khóa đầu vào chọn gói cước và hiển thị thông báo chú thích chính sách ràng buộc nghĩa vụ sử dụng của nhà mạng. Đối với các Sim thường, hệ thống tự động tải danh sách gói cước thuộc riêng nhà mạng đó và cho phép khách hàng tự do lựa chọn mua kèm hoặc không mua kèm.</li>
+            <li>Đơn hàng sau khi tạo lập sẽ tự động kết xuất đầy đủ thông tin số SIM, mã gói cước đi kèm, cước phí đóng định kỳ và tổng giá trị đơn hàng thực đóng trong cả Biên nhận chi tiết tại Web Client lẫn luồng quản lý trạng thái của Admin Đại lý.</li>
+          </ul>
+        </li>
+        <li><strong>Đồng thời nâng cấp đồng bộ trên cả hai phiên bản mã nguồn (Express Server & Next.js Package Integration):</strong>
+          <ul>
+            <li>Phát triển các endpoints CRUD cho nhà mạng và gói cước tại <code>server.ts</code>. Trọng tâm nâng cấp logic tạo đơn hàng <code>POST /api/orders</code> để truy xuất, bóc tách và chèn cứng thông tin gói cước vào cơ sở dữ liệu.</li>
+            <li>Đồng bộ hóa toàn diện mã nguồn trong gói Next.js nén xuất bản (Next.js Application Stack), bảo chứng một lập trình viên có thể mang cả hệ thống tích hợp mới sang hosting local bên ngoài chạy mượt mà tức thì.</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+
     <h2>3. BẢNG THỐNG KÊ CẤU HÌNH THAM SỐ ADMINISTRATIVE CONFIGURATIONS TRONG HỆ THỐNG</h2>
     <table>
       <thead>
@@ -1452,12 +1485,42 @@ npm run start</pre>
   const schemaCode = `// src/db/schema.ts
 import { pgTable, text, integer, doublePrecision, boolean, index } from "drizzle-orm/pg-core";
 
+// Table to store Mobile Networks (Nhà mạng)
+export const networks = pgTable("networks", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  logo: text("logo"), // Hex color representation or style description for custom brand styling
+  notes: text("notes"),
+});
+
+// Table to store Gói Cước (Mobile Packages)
+export const packages = pgTable("packages", {
+  id: text("id").primaryKey(),
+  networkId: text("network_id").notNull().references(() => networks.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  monthlyFee: doublePrecision("monthly_fee").notNull(),
+  minutesInternal: integer("minutes_internal").default(0).notNull(),
+  minutesExternal: integer("minutes_external").default(0).notNull(),
+  smsInternal: integer("sms_internal").default(0).notNull(),
+  smsExternal: integer("sms_external").default(0).notNull(),
+  dataGb: doublePrecision("data_gb").default(0).notNull(),
+  dataLimitText: text("data_limit_text"), // e.g. "4GB/Ngày" or "120GB/Tháng"
+  outOfBundleCharge: text("out_of_bundle_charge"), // Price/limit out of bundle description
+  isMandatory: boolean("is_mandatory").default(false).notNull(), // Mandatory committed package (không được bỏ chọn)
+}, (table) => {
+  return [
+    index("packages_network_id_idx").on(table.networkId),
+  ];
+});
+
 // Table to store SIM cards
 export const sims = pgTable("sims", {
   id: text("id").primaryKey(),
   number: text("number").notNull(),
   searchableNumber: text("searchable_number").notNull(),
-  carrier: text("carrier").notNull(),
+  carrier: text("carrier").notNull(), // Left for backward compatibility and string queries
+  networkId: text("network_id").references(() => networks.id, { onDelete: "set null" }), // Associated network table
+  mandatoryPackageId: text("mandatory_package_id"), // NULL if normal sim with optional selections, or package_id for custom committed packages
   price: doublePrecision("price").notNull(),
   category: text("category").notNull(),
   status: text("status").notNull(),
@@ -1473,6 +1536,9 @@ export const sims = pgTable("sims", {
     index("carrier_idx").on(table.carrier),
     index("category_idx").on(table.category),
     index("price_idx").on(table.price),
+    index("sims_status_idx").on(table.status),
+    index("sims_network_id_idx").on(table.networkId),
+    index("sims_mandatory_package_id_idx").on(table.mandatoryPackageId),
   ];
 });
 
@@ -1521,14 +1587,45 @@ export const orders = pgTable("orders", {
   paymentStatus: text("payment_status").notNull(),
   status: text("status").notNull(),
   createdAt: text("created_at").notNull(),
+  
+  // Package additions (Chi tiết gói cước đi kèm)
+  packageId: text("package_id"),
+  packageName: text("package_name"),
+  packageFee: doublePrecision("package_fee"),
+  packageDetails: text("package_details"),
+  isPackageMandatory: boolean("is_package_mandatory").default(false),
 });`;
 
   const sqlCode = `-- DDL SQL khởi tạo trực tiếp trên Private PostgreSQL
+CREATE TABLE IF NOT EXISTS networks (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  logo TEXT,
+  notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS packages (
+  id TEXT PRIMARY KEY,
+  network_id TEXT NOT NULL REFERENCES networks(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  monthly_fee DOUBLE PRECISION NOT NULL,
+  minutes_internal INTEGER DEFAULT 0 NOT NULL,
+  minutes_external INTEGER DEFAULT 0 NOT NULL,
+  sms_internal INTEGER DEFAULT 0 NOT NULL,
+  sms_external INTEGER DEFAULT 0 NOT NULL,
+  data_gb DOUBLE PRECISION DEFAULT 0 NOT NULL,
+  data_limit_text TEXT,
+  out_of_bundle_charge TEXT,
+  is_mandatory BOOLEAN DEFAULT false NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS sims (
   id TEXT PRIMARY KEY,
   number TEXT NOT NULL,
   searchable_number TEXT NOT NULL,
   carrier TEXT NOT NULL,
+  network_id TEXT REFERENCES networks(id) ON DELETE SET NULL,
+  mandatory_package_id TEXT,
   price DOUBLE PRECISION NOT NULL,
   category TEXT NOT NULL,
   status TEXT NOT NULL,
@@ -1581,7 +1678,12 @@ CREATE TABLE IF NOT EXISTS orders (
   payment_method TEXT NOT NULL,
   payment_status TEXT NOT NULL,
   status TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  package_id TEXT,
+  package_name TEXT,
+  package_fee DOUBLE PRECISION,
+  package_details TEXT,
+  is_package_mandatory BOOLEAN DEFAULT false
 );`;
 
   const handleGenerateSims = async () => {

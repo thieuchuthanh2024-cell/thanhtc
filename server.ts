@@ -3493,10 +3493,20 @@ app.post("/api/verify-download", (req, res) => {
   }
 });
 
-app.get("/api/download-nextjs-zip", (req, res) => {
+app.get("/api/download-nextjs-zip", async (req, res) => {
   const { token } = req.query;
   if (token && typeof token === "string" && activeDownloadTokens.has(token)) {
     activeDownloadTokens.delete(token); // Single-use token: invalidates instantly
+    
+    // Automatically rebuild/sync Next.js source code right before download to ensure perfect synchronization
+    try {
+      console.log("[ZIP Download] Regenerating nextjs_source_code.zip dynamically...");
+      const { execSync } = await import("child_process");
+      execSync("npx -y tsx build-nextjs.js", { cwd: process.cwd() });
+    } catch (syncErr) {
+      console.error("[ZIP Download] Error running build-nextjs.js:", syncErr);
+    }
+
     const zipPath = path.join(process.cwd(), "nextjs_source_code.zip");
     if (fs.existsSync(zipPath)) {
       res.setHeader("Content-Type", "application/zip");

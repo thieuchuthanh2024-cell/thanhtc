@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, CreditCard, ShieldCheck, CheckCircle2, QrCode, AlertCircle, Sparkles, ChevronRight } from "lucide-react";
+import { X, CreditCard, ShieldCheck, CheckCircle2, QrCode, AlertCircle, Sparkles, ChevronRight, Wifi } from "lucide-react";
 import { SimCard, Order, AgentRole } from "@/types";
 
 // Helper to map dynamic bank names configured by admin into clean, compliant VietQR Bank IDs
@@ -161,6 +161,7 @@ interface CheckoutModalProps {
     customerPhone: string;
     customerAddress: string;
     paymentMethod: "momo" | "vietqr" | "vnpay";
+    packageId?: string;
   }) => Promise<Order>;
   onSimulatePayment: (id: string) => Promise<void>;
 }
@@ -181,6 +182,32 @@ export default function CheckoutModal({
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerAddress, setCustomerAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"momo" | "vietqr" | "vnpay">("vietqr");
+
+  // Packages associated with Carrier
+  const [carrierPackages, setCarrierPackages] = useState<any[]>([]);
+  const [selectedPackageId, setSelectedPackageId] = useState<string>("");
+  const [loadingPackages, setLoadingPackages] = useState<boolean>(false);
+
+  useEffect(() => {
+    // If the SIM card already locks details of a mandatory package
+    if (sim.mandatoryPackageId) {
+      setSelectedPackageId(sim.mandatoryPackageId);
+    }
+    
+    // Fetch packages for this SIM's network
+    setLoadingPackages(true);
+    const netId = (sim.networkId || sim.carrier).toLowerCase().trim();
+    fetch(`/api/packages?networkId=${netId}`)
+      .then(res => {
+        if (res.ok) return res.json();
+        return [];
+      })
+      .then(data => {
+        setCarrierPackages(data);
+      })
+      .catch(err => console.error("Error fetching packages for SIM's carrier", err))
+      .finally(() => setLoadingPackages(false));
+  }, [sim]);
 
   // Dynamic dynamic secrets from backend config
   const [secrets, setSecrets] = useState<any>({
@@ -237,6 +264,7 @@ export default function CheckoutModal({
         customerPhone,
         customerAddress: customerAddress || "Nhận tại cửa hàng / COD",
         paymentMethod,
+        packageId: selectedPackageId || undefined,
       });
       setCreatedOrder(order);
       setStep("payment");
@@ -374,6 +402,77 @@ export default function CheckoutModal({
                     className="w-full text-slate-900 p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#003366] text-xs font-semibold"
                   />
                 </div>
+              </div>
+
+              {/* CHỌN GÓI CƯỚC ĐI KÈM */}
+              <div className="space-y-2 bg-slate-50 p-4 border border-slate-150 rounded-2xl">
+                <div className="flex items-center gap-1.5 justify-between">
+                  <h4 className="font-sans font-bold text-xs text-slate-700 uppercase tracking-wider font-mono flex items-center gap-1">
+                    <Wifi className="w-4 h-4 text-[#003366]" /> Gói cước di động đi kèm
+                  </h4>
+                  {sim.mandatoryPackageId && (
+                    <span className="text-[10px] bg-amber-400 text-slate-900 font-extrabold px-2 py-0.5 rounded-full uppercase scale-95 tracking-wide shadow-xs">
+                      Cam kết bắt buộc
+                    </span>
+                  )}
+                </div>
+
+                {sim.mandatoryPackageId ? (
+                  // Locked Mandatory Package Display
+                  <div className="bg-amber-500/10 border border-amber-350 p-3 rounded-xl space-y-1 mt-2 animate-fadeIn text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800 text-xs">
+                        🎁 Gói cam kết: {sim.mandatoryPackage?.name || "Cam kết gán sẵn"}
+                      </span>
+                      <span className="font-black text-[#003366] text-xs">
+                        {(sim.mandatoryPackage?.monthlyFee || 200000).toLocaleString()}đ / tháng
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-600 font-mono">
+                      Ưu đãi: {sim.mandatoryPackage?.dataLimitText || "4GB/ngày"}, {sim.mandatoryPackage?.minutesInternal || 2000}p nội, {sim.mandatoryPackage?.minutesExternal || 100}p ngoại mạng.
+                    </p>
+                    <p className="text-[10px] text-amber-800 font-sans italic pt-1">
+                      ⚠️ Chú ý: Đây là số sim đẹp của nhà mạng {sim.carrier}. Khách hàng cam kết đăng ký sử dụng tối thiểu 12 tháng gói cước kèm theo này.
+                    </p>
+                  </div>
+                ) : (
+                  // General Package Selection Dropdown / Selector
+                  <div className="space-y-2 mt-2">
+                    <label className="text-[10px] text-slate-500 font-mono block text-left">
+                      Lựa chọn gói cước ưu đãi bổ sung của nhà mạng {sim.carrier}:
+                    </label>
+                    <select
+                      value={selectedPackageId}
+                      onChange={(e) => setSelectedPackageId(e.target.value)}
+                      className="w-full text-slate-900 p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#003366] text-xs font-semibold cursor-pointer"
+                    >
+                      <option value="">-- Chỉ mua SIM (Không kèm gói cước) --</option>
+                      {carrierPackages.map((pkg) => (
+                        <option key={pkg.id} value={pkg.id}>
+                          {pkg.name} ({pkg.monthlyFee.toLocaleString()}đ/th) — {pkg.dataLimitText || `${pkg.dataGb}GB`}
+                        </option>
+                      ))}
+                    </select>
+
+                    {selectedPackageId && (
+                      (() => {
+                        const selPkg = carrierPackages.find(p => p.id === selectedPackageId);
+                        if (!selPkg) return null;
+                        return (
+                          <div className="bg-blue-50/50 border border-blue-150 p-2.5 rounded-xl space-y-1 text-slate-700 animate-fadeIn mt-1.5 text-left">
+                            <p className="text-[10px] font-bold text-slate-800">
+                              🚀 Ưu đãi gói {selPkg.name}:
+                            </p>
+                            <p className="text-[10px] text-slate-500 font-mono leading-relaxed">
+                              Hạn mức Data: {selPkg.dataLimitText || `${selPkg.dataGb}GB`}. Gọi: {selPkg.minutesInternal || 0}p nội, {selPkg.minutesExternal || 0}p ngoại mạng. 
+                              {selPkg.outOfBundleCharge && ` (${selPkg.outOfBundleCharge})`}
+                            </p>
+                          </div>
+                        );
+                      })()
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Select payment method */}
@@ -599,6 +698,9 @@ export default function CheckoutModal({
               <div className="bg-emerald-50 rounded-2xl p-4 text-left text-xs text-emerald-950 border border-emerald-100 flex flex-col space-y-1">
                 <p>Mã hóa đơn: <strong>{createdOrder.id}</strong></p>
                 <p>Số thuê bao đặt mua: <strong>{createdOrder.simNumber} (mạng {createdOrder.carrier})</strong></p>
+                {createdOrder.packageName && (
+                  <p>🎁 Gói cước đi kèm: <strong className="text-[#003366]">{createdOrder.packageName}</strong> ({createdOrder.packageFee?.toLocaleString() || "0"}đ/tháng {createdOrder.isPackageMandatory ? "- Gói cam kết" : ""})</p>
+                )}
                 <p>Khách hàng: <strong>{createdOrder.customerName}</strong></p>
                 <p>Số nhận: <strong>{createdOrder.customerPhone}</strong></p>
                 <p>Nơi nhận sim: <strong>{createdOrder.customerAddress}</strong></p>

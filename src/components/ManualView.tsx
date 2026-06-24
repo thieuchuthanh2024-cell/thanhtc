@@ -1483,12 +1483,42 @@ npm run start</pre>
   const schemaCode = `// src/db/schema.ts
 import { pgTable, text, integer, doublePrecision, boolean, index } from "drizzle-orm/pg-core";
 
+// Table to store Mobile Networks (Nhà mạng)
+export const networks = pgTable("networks", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  logo: text("logo"), // Hex color representation or style description for custom brand styling
+  notes: text("notes"),
+});
+
+// Table to store Gói Cước (Mobile Packages)
+export const packages = pgTable("packages", {
+  id: text("id").primaryKey(),
+  networkId: text("network_id").notNull().references(() => networks.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  monthlyFee: doublePrecision("monthly_fee").notNull(),
+  minutesInternal: integer("minutes_internal").default(0).notNull(),
+  minutesExternal: integer("minutes_external").default(0).notNull(),
+  smsInternal: integer("sms_internal").default(0).notNull(),
+  smsExternal: integer("sms_external").default(0).notNull(),
+  dataGb: doublePrecision("data_gb").default(0).notNull(),
+  dataLimitText: text("data_limit_text"), // e.g. "4GB/Ngày" or "120GB/Tháng"
+  outOfBundleCharge: text("out_of_bundle_charge"), // Price/limit out of bundle description
+  isMandatory: boolean("is_mandatory").default(false).notNull(), // Mandatory committed package (không được bỏ chọn)
+}, (table) => {
+  return [
+    index("packages_network_id_idx").on(table.networkId),
+  ];
+});
+
 // Table to store SIM cards
 export const sims = pgTable("sims", {
   id: text("id").primaryKey(),
   number: text("number").notNull(),
   searchableNumber: text("searchable_number").notNull(),
-  carrier: text("carrier").notNull(),
+  carrier: text("carrier").notNull(), // Left for backward compatibility and string queries
+  networkId: text("network_id").references(() => networks.id, { onDelete: "set null" }), // Associated network table
+  mandatoryPackageId: text("mandatory_package_id"), // NULL if normal sim with optional selections, or package_id for custom committed packages
   price: doublePrecision("price").notNull(),
   category: text("category").notNull(),
   status: text("status").notNull(),
@@ -1504,6 +1534,9 @@ export const sims = pgTable("sims", {
     index("carrier_idx").on(table.carrier),
     index("category_idx").on(table.category),
     index("price_idx").on(table.price),
+    index("sims_status_idx").on(table.status),
+    index("sims_network_id_idx").on(table.networkId),
+    index("sims_mandatory_package_id_idx").on(table.mandatoryPackageId),
   ];
 });
 
@@ -1552,14 +1585,45 @@ export const orders = pgTable("orders", {
   paymentStatus: text("payment_status").notNull(),
   status: text("status").notNull(),
   createdAt: text("created_at").notNull(),
+  
+  // Package additions (Chi tiết gói cước đi kèm)
+  packageId: text("package_id"),
+  packageName: text("package_name"),
+  packageFee: doublePrecision("package_fee"),
+  packageDetails: text("package_details"),
+  isPackageMandatory: boolean("is_package_mandatory").default(false),
 });`;
 
   const sqlCode = `-- DDL SQL khởi tạo trực tiếp trên Private PostgreSQL
+CREATE TABLE IF NOT EXISTS networks (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  logo TEXT,
+  notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS packages (
+  id TEXT PRIMARY KEY,
+  network_id TEXT NOT NULL REFERENCES networks(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  monthly_fee DOUBLE PRECISION NOT NULL,
+  minutes_internal INTEGER DEFAULT 0 NOT NULL,
+  minutes_external INTEGER DEFAULT 0 NOT NULL,
+  sms_internal INTEGER DEFAULT 0 NOT NULL,
+  sms_external INTEGER DEFAULT 0 NOT NULL,
+  data_gb DOUBLE PRECISION DEFAULT 0 NOT NULL,
+  data_limit_text TEXT,
+  out_of_bundle_charge TEXT,
+  is_mandatory BOOLEAN DEFAULT false NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS sims (
   id TEXT PRIMARY KEY,
   number TEXT NOT NULL,
   searchable_number TEXT NOT NULL,
   carrier TEXT NOT NULL,
+  network_id TEXT REFERENCES networks(id) ON DELETE SET NULL,
+  mandatory_package_id TEXT,
   price DOUBLE PRECISION NOT NULL,
   category TEXT NOT NULL,
   status TEXT NOT NULL,
@@ -1612,7 +1676,12 @@ CREATE TABLE IF NOT EXISTS orders (
   payment_method TEXT NOT NULL,
   payment_status TEXT NOT NULL,
   status TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  package_id TEXT,
+  package_name TEXT,
+  package_fee DOUBLE PRECISION,
+  package_details TEXT,
+  is_package_mandatory BOOLEAN DEFAULT false
 );`;
 
   const handleGenerateSims = async () => {

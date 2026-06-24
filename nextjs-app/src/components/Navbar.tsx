@@ -36,6 +36,28 @@ export default function Navbar({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileAdminOpen, setIsMobileAdminOpen] = useState(false);
   const [isAdminDropdownOpen, setIsAdminDropdownOpen] = useState(false);
+  const dropdownTimeoutRef = React.useRef<any>(null);
+
+  const handleAdminMouseEnter = () => {
+    if (dropdownTimeoutRef.current) {
+      clearTimeout(dropdownTimeoutRef.current);
+    }
+    setIsAdminDropdownOpen(true);
+  };
+
+  const handleAdminMouseLeave = () => {
+    dropdownTimeoutRef.current = setTimeout(() => {
+      setIsAdminDropdownOpen(false);
+    }, 500); // 500ms delay to allow smooth transition down to submenu
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (dropdownTimeoutRef.current) {
+        clearTimeout(dropdownTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <nav className="bg-[#003366] text-white shadow-md sticky top-0 z-40" id="app-navbar">
@@ -141,8 +163,8 @@ export default function Navbar({
             {activeRole === "Admin" ? (
               <div 
                 className="relative"
-                onMouseEnter={() => setIsAdminDropdownOpen(true)}
-                onMouseLeave={() => setIsAdminDropdownOpen(false)}
+                onMouseEnter={handleAdminMouseEnter}
+                onMouseLeave={handleAdminMouseLeave}
                 id="admin-parent-dropdown-wrapper"
               >
                 <button
@@ -199,6 +221,18 @@ export default function Navbar({
                       📈 Báo Cáo Doanh Thu
                     </button>
                     
+                    <button
+                      onClick={() => {
+                        onChangeTab("packages-admin");
+                        setIsAdminDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-2 text-xs font-semibold flex items-center gap-2 transition-all hover:bg-[#003366] hover:text-[#FFD700] ${
+                        activeTab === "packages-admin" ? "text-[#FFD700] bg-[#003366]" : "text-blue-100"
+                      }`}
+                    >
+                      📶 Gói cước & Nhà mạng
+                    </button>
+
                     <button
                       onClick={() => {
                         onChangeTab("guide");
@@ -446,6 +480,19 @@ export default function Navbar({
                       📈 Báo Cáo Doanh Thu
                     </button>
                     
+                    <button
+                      onClick={() => {
+                        onChangeTab("packages-admin");
+                        setIsMobileAdminOpen(false);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 ${
+                        activeTab === "packages-admin" ? "bg-[#003366] text-[#FFD700] font-bold" : "text-blue-200 hover:bg-slate-800/20"
+                      }`}
+                    >
+                      📶 Gói cước & Nhà mạng
+                    </button>
+
                     <button
                       onClick={() => {
                         onChangeTab("guide");

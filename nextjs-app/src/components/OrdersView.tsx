@@ -60,16 +60,33 @@ export default function OrdersView({
       const res = await fetch(`/api/orders?${qParams.toString()}`);
       if (res.ok) {
         const data = await res.json();
+        let ordersList: Order[] = [];
         // Since backend handles compatibility:
         if (Array.isArray(data)) {
           // Fallback if backend returned raw list
+          ordersList = data;
           setLocalOrders(data);
           setTotalCount(data.length);
           setTotalPages(1);
         } else {
-          setLocalOrders(data.orders || []);
+          ordersList = data.orders || [];
+          setLocalOrders(ordersList);
           setTotalCount(data.totalCount || 0);
           setTotalPages(data.totalPages || 1);
+        }
+
+        // Auto-select the first order if none is selected or selected is no longer matching
+        if (ordersList.length > 0) {
+          setSelectedOrder((prev) => {
+            if (prev && ordersList.some((o) => o.id === prev.id)) {
+              // Try to find the latest version in the newly fetched list to update statuses
+              const updated = ordersList.find((o) => o.id === prev.id);
+              return updated || prev;
+            }
+            return ordersList[0];
+          });
+        } else {
+          setSelectedOrder(null);
         }
       }
     } catch (err) {
@@ -208,7 +225,16 @@ export default function OrdersView({
             localOrders.map((order) => (
               <div
                 key={order.id}
-                onClick={() => setSelectedOrder(order)}
+                onClick={() => {
+                  setSelectedOrder(order);
+                  // Scroll to details on mobile/small screens
+                  setTimeout(() => {
+                    const detailPane = document.getElementById("order-details-pane");
+                    if (detailPane) {
+                      detailPane.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                    }
+                  }, 100);
+                }}
                 className={`p-4 bg-slate-50 hover:bg-slate-100/50 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative ${
                   selectedOrder?.id === order.id ? "border-[#003366] bg-blue-50/20" : "border-slate-150"
                 }`}
@@ -222,6 +248,15 @@ export default function OrdersView({
                     <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${order.paymentStatus === "Đã thanh toán" ? "bg-emerald-100 text-emerald-700 font-extrabold border border-emerald-200" : "bg-red-100 text-red-700 border border-red-250"}`}>
                       {order.paymentStatus}
                     </span>
+                    {order.packageName && (
+                      <span className={`px-2 py-0.5 rounded text-[9.5px] font-bold border flex items-center gap-0.5 ${
+                        order.isPackageMandatory 
+                          ? "bg-amber-50 text-amber-805 border-amber-200 font-extrabold" 
+                          : "bg-blue-50 text-[#003366] border-blue-200"
+                      }`} title={order.packageDetails || ""}>
+                        <span>📶</span> Gói {order.packageName}
+                      </span>
+                    )}
                   </div>
                   <h4 className="font-sans font-extrabold text-base text-slate-900 tracking-tight leading-snug">
                     SIM {order.simNumber} (mạng {order.carrier})
@@ -229,6 +264,18 @@ export default function OrdersView({
                   <p className="text-[11px] text-slate-400">
                     Người mua: <strong className="text-slate-700">{order.customerName}</strong> • SĐT: {order.customerPhone}
                   </p>
+                  {order.packageName && (
+                    <div className="text-[10.5px] mt-1.5 bg-gradient-to-r from-blue-50/70 to-indigo-50/30 border border-blue-100/80 text-blue-900 px-2.5 py-1.5 rounded-xl space-y-0.5">
+                      <p className="font-semibold flex items-center gap-1">
+                        <span className="text-xs">🎁</span> Gói cước: <span className="font-bold text-slate-800">{order.packageName}</span> • <span className="font-semibold text-indigo-700">{order.packageFee?.toLocaleString("vi-VN")} đ/tháng</span> {order.isPackageMandatory ? " (Gói cam kết)" : ""}
+                      </p>
+                      {order.packageDetails && (
+                        <p className="text-[9.5px] text-slate-500 leading-tight pl-4 font-normal">
+                          Ưu đãi: {order.packageDetails}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="sm:text-right flex flex-row sm:flex-col justify-between sm:justify-end items-center sm:items-end w-full sm:w-auto border-t sm:border-t-0 border-slate-200/50 pt-2 sm:pt-0 gap-1 shrink-0">
@@ -278,7 +325,7 @@ export default function OrdersView({
       </div>
 
       {/* 2. Right Section: Live Timeline Tracking & Admin Actions Control Console */}
-      <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm lg:col-span-1 space-y-5">
+      <div id="order-details-pane" className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm lg:col-span-1 space-y-5">
         <h3 className="font-sans font-bold text-slate-800 text-sm border-b border-slate-50 pb-3">
           Chi Tiết Lộ Trình Cấp Số &amp; Tác Vụ
         </h3>
@@ -299,6 +346,63 @@ export default function OrdersView({
                 <p>Điện thoại giao dịch: <strong>{selectedOrder.customerPhone}</strong></p>
                 <p>Nơi nhận sim: <strong className="text-slate-400 text-[11px] font-medium block leading-tight">{selectedOrder.customerAddress}</strong></p>
                 
+                {selectedOrder.packageName ? (
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-3.5 mt-2 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs">📶</span>
+                        <div>
+                          <p className="text-[10px] font-bold text-blue-900 leading-none">Gói cước đăng ký kèm</p>
+                          <p className="text-[8px] text-[#003366]/70 uppercase tracking-wide font-mono font-bold mt-0.5">{selectedOrder.carrier}</p>
+                        </div>
+                      </div>
+                      <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold border ${
+                        selectedOrder.isPackageMandatory 
+                          ? "bg-amber-100 text-amber-805 border-amber-200" 
+                          : "bg-blue-100 text-blue-800 border-blue-200"
+                      }`}>
+                        {selectedOrder.isPackageMandatory ? "🎗️ Cam kết sử dụng" : "✨ Gói tự chọn"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[10px] bg-white/80 p-2 rounded-lg border border-blue-50">
+                      <div>
+                        <span className="text-slate-400 font-sans block text-[9px]">Tên gói cước:</span>
+                        <strong className="text-slate-900 text-xs font-black">{selectedOrder.packageName}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-sans block text-[9px]">Cước phí:</span>
+                        <strong className="text-indigo-950 font-mono text-xs font-bold">
+                          {selectedOrder.packageFee?.toLocaleString("vi-VN") || "0"} đ<span className="text-[8px] font-normal text-slate-500">/tháng</span>
+                        </strong>
+                      </div>
+                    </div>
+
+                    {selectedOrder.packageDetails && (
+                      <div className="text-[10px] text-slate-600 bg-white/40 border border-blue-50/50 p-2 rounded-lg">
+                        <span className="font-bold text-[#003366] uppercase tracking-wider block text-[7px] font-mono mb-0.5">Ưu đãi của gói cước:</span>
+                        <p className="leading-snug text-slate-650">
+                          {selectedOrder.packageDetails}
+                        </p>
+                      </div>
+                    )}
+
+                    {selectedOrder.isPackageMandatory && (
+                      <div className="bg-amber-50/80 border border-amber-100 rounded-lg p-2">
+                        <p className="text-[8px] text-amber-900 leading-normal font-sans">
+                          * Đây là SIM đẹp có gói cam kết sử dụng 12 tháng, không được tự ý huỷ gói hoặc đổi nhà mạng trong chu kỳ cam kết.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 border border-slate-150 rounded-xl p-3 mt-2 text-left">
+                    <p className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5 leading-none">
+                      <span className="opacity-60">📶</span> Gói cước đăng ký kèm: <span className="text-slate-400 font-semibold font-sans">Không đăng ký gói cước bổ sung (Mua SIM trần)</span>
+                    </p>
+                  </div>
+                )}
+
                 {selectedOrder.agentRole && (
                   <p className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 mt-2 inline-block">
                      Thuộc sỉ buôn: {selectedOrder.agentRole}

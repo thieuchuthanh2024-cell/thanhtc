@@ -1,8 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const archiver = require("archiver");
+import * as archiverModule from "archiver";
 
 console.log("=== BẮT ĐẦU QUY TRÌNH BIÊN DỊCH & SYNC SANG NEXT.JS ===");
 
@@ -96,7 +94,7 @@ function zipNextJSFolder() {
     
     const zipPath = path.join(workspaceRoot, "nextjs_source_code.zip");
     const output = fs.createWriteStream(zipPath);
-    const archive = new archiver.ZipArchive({ zlib: { level: 9 } });
+    const archive = new archiverModule.ZipArchive({ zlib: { level: 9 } });
 
     output.on("close", () => {
       console.log(`✅ Thành công! Đã ghi file sản phẩm: nextjs_source_code.zip (${archive.pointer()} bytes)`);

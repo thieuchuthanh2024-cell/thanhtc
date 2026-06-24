@@ -9,6 +9,7 @@ import AgentProfileView from "@/components/AgentProfileView";
 import ReportsView from "@/components/ReportsView";
 import ManualView from "@/components/ManualView";
 import SimsSyncView from "@/components/SimsSyncView";
+import PackagesAdminView from "@/components/PackagesAdminView";
 import CheckoutModal from "@/components/CheckoutModal";
 import AuthModal from "@/components/AuthModal";
 import VietsimLogo from "@/components/VietsimLogo";
@@ -108,6 +109,7 @@ export default function App() {
     customerPhone: string;
     customerAddress: string;
     paymentMethod: "momo" | "vietqr" | "vnpay";
+    packageId?: string;
   }) => {
     const payload = {
       simId: selectedSimForCheckout?.id,
@@ -116,6 +118,7 @@ export default function App() {
       customerAddress: orderData.customerAddress,
       paymentMethod: orderData.paymentMethod,
       agentId: currentAgent?.id || undefined, // link agent context if not retail
+      packageId: orderData.packageId,
     };
 
     const response = await fetch("/api/orders", {
@@ -303,6 +306,10 @@ export default function App() {
 
               {activeTab === "sims-sync" && activeRole === "Admin" && (
                 <SimsSyncView onRefreshStock={refreshAll} currentAgent={currentAgent} />
+              )}
+
+              {activeTab === "packages-admin" && activeRole === "Admin" && (
+                <PackagesAdminView />
               )}
 
               {activeTab === "reports" && <ReportsView />}
