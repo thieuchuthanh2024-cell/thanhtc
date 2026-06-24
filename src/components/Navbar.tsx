@@ -242,6 +242,18 @@ export default function Navbar({
                     >
                       📖 Hướng Dẫn Sử Dụng
                     </button>
+
+                    <button
+                      onClick={() => {
+                        onChangeTab("sql-admin");
+                        setIsAdminDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-2 text-xs font-semibold flex items-center gap-2 transition-all hover:bg-[#003366] hover:text-[#FFD700] ${
+                        activeTab === "sql-admin" ? "text-[#FFD700] bg-[#003366]" : "text-blue-100"
+                      }`}
+                    >
+                      🛠️ Truy vấn SQL
+                    </button>
                   </div>
                 )}
               </div>
@@ -353,6 +365,7 @@ export default function Navbar({
                   <option value="sims-sync" className="bg-[#002244] text-white">🔄 Đồng bộ kho</option>
                   <option value="reports" className="bg-[#002244] text-white">📈 Doanh thu</option>
                   <option value="guide" className="bg-[#002244] text-white">📖 HD Admin</option>
+                  <option value="sql-admin" className="bg-[#002244] text-white">🛠️ Truy vấn SQL</option>
                 </optgroup>
               ) : (
                 activeRole !== "Khách hàng" && (
@@ -502,6 +515,19 @@ export default function Navbar({
                       }`}
                     >
                       📖 Hướng Dẫn Sử Dụng
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        onChangeTab("sql-admin");
+                        setIsMobileAdminOpen(false);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 ${
+                        activeTab === "sql-admin" ? "bg-[#003366] text-[#FFD700] font-bold" : "text-blue-200 hover:bg-slate-800/20"
+                      }`}
+                    >
+                      🛠️ Truy vấn SQL
                     </button>
                   </div>
                 )}

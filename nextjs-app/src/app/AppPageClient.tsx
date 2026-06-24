@@ -10,6 +10,7 @@ import ReportsView from "@/components/ReportsView";
 import ManualView from "@/components/ManualView";
 import SimsSyncView from "@/components/SimsSyncView";
 import PackagesAdminView from "@/components/PackagesAdminView";
+import SqlAdminView from "@/components/SqlAdminView";
 import CheckoutModal from "@/components/CheckoutModal";
 import AuthModal from "@/components/AuthModal";
 import VietsimLogo from "@/components/VietsimLogo";
@@ -310,6 +311,10 @@ export default function App() {
 
               {activeTab === "packages-admin" && activeRole === "Admin" && (
                 <PackagesAdminView />
+              )}
+
+              {activeTab === "sql-admin" && activeRole === "Admin" && (
+                <SqlAdminView />
               )}
 
               {activeTab === "reports" && <ReportsView />}

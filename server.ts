@@ -641,6 +641,29 @@ app.post("/api/secrets", (req, res) => {
   }
 });
 
+// Admin interactive raw SQL command center API with password checking
+app.post("/api/admin/execute-sql", async (req, res) => {
+  const { password, query } = req.body;
+  if (password !== "Thanh@admin") {
+    return res.status(401).json({ success: false, error: "Mật khẩu quản trị viên không chính xác!" });
+  }
+  if (!query || typeof query !== "string" || query.trim() === "") {
+    return res.status(400).json({ success: false, error: "Câu lệnh SQL không hợp lệ!" });
+  }
+  try {
+    const result = await db.execute(sql.raw(query));
+    res.json({
+      success: true,
+      rows: result.rows || [],
+      rowCount: result.rowCount ?? (result.rows ? result.rows.length : 0),
+      fields: result.fields || []
+    });
+  } catch (err: any) {
+    console.error("[SQL Console Error]", err);
+    res.status(500).json({ success: false, error: err?.message || "Lỗi cú pháp hoặc lỗi khi thực thi SQL." });
+  }
+});
+
 // ---------------------- AUTOMATED WEB SCRAPER & CRON SCHEDULER (SIMTHANGLONG.VN) ----------------------
 
 async function scrapeSimThangLong(targetUrl: string, limitSims: number = 25): Promise<{
