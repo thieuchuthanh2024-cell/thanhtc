@@ -57,6 +57,23 @@ export async function POST(request: Request) {
     // Spin off generation in background chunks to avoid blocking/timeouts and keep DB stable
     (async () => {
       try {
+        // Ensure all 6 default networks exist before bulk insert to prevent foreign key constraint failures
+        const mockNetworks = [
+          { id: "viettel", name: "Viettel", logo: "#EE0000", notes: "Nhà mạng Quân đội Viettel" },
+          { id: "vinaphone", name: "Vinaphone", logo: "#0070C0", notes: "Nhà mạng Vinaphone - VNPT" },
+          { id: "mobifone", name: "Mobifone", logo: "#005FC2", notes: "Nhà mạng MobiFone" },
+          { id: "vietnamobile", name: "Vietnamobile", logo: "#FF6600", notes: "Nhà mạng Vietnamobile" },
+          { id: "itelecom", name: "Itelecom", logo: "#E21A22", notes: "Mạng di động ảo Itelecom" },
+          { id: "wintel", name: "Wintel", logo: "#E30613", notes: "Mạng di động ảo Wintel" }
+        ];
+        for (const net of mockNetworks) {
+          await db.execute(sql`
+            INSERT INTO networks (id, name, logo, notes) 
+            VALUES (${net.id}, ${net.name}, ${net.logo}, ${net.notes}) 
+            ON CONFLICT (id) DO NOTHING
+          `);
+        }
+
         const batchSize = 100000;
         let inserted = 0;
         let index = 1;
@@ -64,7 +81,7 @@ export async function POST(request: Request) {
         while (inserted < numCount) {
           const currentBatchLimit = Math.min(batchSize, numCount - inserted);
 
-          // We execute the same optimized raw PostgreSQL generation script
+          // We execute the same optimized raw PostgreSQL generation script with raw inline params to prevent type coercion failures
           const query = sql`
             INSERT INTO sims (id, number, searchable_number, carrier, network_id, mandatory_package_id, price, category, status, sum, is_hot, notes)
             SELECT 
@@ -79,7 +96,7 @@ export async function POST(request: Request) {
               price, category, status, sum, is_hot, notes
             FROM (
               SELECT 
-                'sim-gen-' || ${index} || '-' || seq || '-' || floor(random() * 10000000)::integer AS id,
+                'sim-gen-' || ${sql.raw(index.toString())} || '-' || seq || '-' || floor(random() * 10000000)::integer AS id,
                 '09' || r_num AS number,
                 '09' || r_num AS searchable_number,
                 carrier,
@@ -105,7 +122,7 @@ export async function POST(request: Request) {
                   lpad((floor(random() * 90000000 + 10000000)::bigint)::text, 8, '0') AS r_num,
                   (ARRAY['Viettel', 'Vinaphone', 'Mobifone', 'Vietnamobile', 'Itelecom', 'Wintel'])[floor(random() * 6 + 1)] AS carrier,
                   (ARRAY[500000, 1000000, 2500000, 5000000, 15000000, 45000000, 120000000, 500000000])[floor(random() * 8 + 1)]::double precision AS price
-                FROM generate_series(1, ${currentBatchLimit}) AS seq
+                FROM generate_series(1, ${sql.raw(currentBatchLimit.toString())}) AS seq
               ) sub1
             ) sub2;
           `;
